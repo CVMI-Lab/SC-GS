@@ -1660,7 +1660,7 @@ class GUI:
             traj_dir = os.path.join(self.args.model_path, 'trajectory')
         # Read deformation files for animation presentation
         deform_keypoint_files = [None] + sorted([file for file in os.listdir(os.path.join(self.args.model_path)) if file.startswith('deform_keypoints') and file.endswith('.pickle')])
-        rendering_animation = len(deform_keypoint_files) > 0
+        rendering_animation = len(deform_keypoint_files) > 1
         if rendering_animation:
             deform_keypoints, self.animation_time = load_obj(os.path.join(self.args.model_path, deform_keypoint_files[1]))
             self.animation_initialize()
