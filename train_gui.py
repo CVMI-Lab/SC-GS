@@ -225,7 +225,7 @@ class GUI:
         self.view_animation = True
         self.n_rings_N = 2
         # Use ARAP or Generative Model to Deform
-        self.deform_mode = "arap_iterative"
+        self.deform_mode = "arap_from_init"
         self.should_render_customized_trajectory = False
         self.should_render_customized_trajectory_spiral = False
 
