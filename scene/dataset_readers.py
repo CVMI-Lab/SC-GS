@@ -161,7 +161,8 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, msk_folder=
             mask = Image.open(msk_path)
             image = np.concatenate([np.asarray(image), np.asarray(mask)], axis=-1)
             image = Image.fromarray(image)
-
+        
+        image_name = ''.join(char for char in image_name if char.isdigit())
         fid = int(image_name) / (num_frames - 1)
         cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
                               image_path=image_path, image_name=image_name, width=width, height=height, fid=fid)

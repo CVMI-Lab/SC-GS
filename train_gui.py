@@ -253,7 +253,14 @@ class GUI:
             trajectory = None
 
         self.animate_init_values = values
-        self.animate_tool = LapDeform(init_pcl=pcl, K=4, trajectory=trajectory, node_radius=self.deform.deform.node_radius.detach())
+        if self.deform.deform.is_scene_static:
+            nodes = self.deform.deform.nodes[..., :3]
+            scale = torch.norm(nodes.max(0).values - nodes.min(0).values)
+            node_radius = scale / 20
+            print(f'Static scene node radius: {node_radius}')
+        else:
+            node_radius = self.deform.deform.node_radius.detach()
+        self.animate_tool = LapDeform(init_pcl=pcl, K=4, trajectory=trajectory, node_radius=node_radius)
         self.keypoint_idxs = []
         self.keypoint_3ds = []
         self.keypoint_labels = []

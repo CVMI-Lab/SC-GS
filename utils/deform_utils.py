@@ -93,7 +93,8 @@ def cal_connectivity_from_points(points=None, radius=0.1, K=10, trajectory=None,
     
     nn_dist[:, least_edge_num:] = torch.where(nn_dist[:, least_edge_num:] < radius ** 2, nn_dist[:, least_edge_num:], torch.ones_like(nn_dist[:, least_edge_num:]) * torch.inf)
     if adaptive_weighting:
-        weight = torch.exp(-nn_dist / nn_dist.mean())
+        nn_dist_1d = nn_dist.reshape(-1)
+        weight = torch.exp(-nn_dist / nn_dist_1d[~torch.isnan(nn_dist_1d) & ~torch.isinf(nn_dist_1d)].mean())
     elif node_radius is None:
         weight = torch.exp(-nn_dist)
     else:
@@ -227,7 +228,10 @@ def lstsq_with_handles(A, b, handle_idx, handle_pos):
     handle_mask = torch.zeros_like(A[:, 0], dtype=bool)
     handle_mask[handle_idx] = 1
     L = A[:, handle_mask.logical_not()]
-    x = torch.linalg.lstsq(L, b)[0]
+    if torch.linalg.matrix_rank(A) == A.shape[0]:
+        x = torch.linalg.lstsq(L, b)[0]
+    else:
+        x = torch.linalg.pinv(L) @ b
     x_out = torch.zeros_like(b)
     x_out[handle_idx] = handle_pos
     x_out[handle_mask.logical_not()] = x
