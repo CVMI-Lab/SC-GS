@@ -75,7 +75,7 @@ CUDA_VISIBLE_DEVICES=0 python train_gui.py \
     --white_background
 ```
 
-#### 3. Editing Guidance  
+#### 3. Editing Results on I-N2N Scenes
 By following the editing guidance, you can easily achieve satisfactory geometry editing results on static scenes, as demonstrated in [Instruct-NeRF2NeRF](https://instruct-nerf2nerf.github.io/):  
 
 <div align="center">
