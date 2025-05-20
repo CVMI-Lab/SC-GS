@@ -223,12 +223,12 @@ def cal_L_from_points(points, return_nn_idx=False):
     else:
         return L
 
-def lstsq_with_handles(A, b, handle_idx, handle_pos):
+def lstsq_with_handles(A, b, handle_idx, handle_pos, A_is_degenarate=False):
     b = b - A[:, handle_idx] @ handle_pos
     handle_mask = torch.zeros_like(A[:, 0], dtype=bool)
     handle_mask[handle_idx] = 1
     L = A[:, handle_mask.logical_not()]
-    if torch.linalg.matrix_rank(A) == A.shape[0]:
+    if not A_is_degenarate:
         x = torch.linalg.lstsq(L, b)[0]
     else:
         x = torch.linalg.pinv(L) @ b

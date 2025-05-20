@@ -58,6 +58,7 @@ class ARAPDeformer:
         self.weight_mask[self.ii, self.nn] = 1
 
         self.L_opt = torch.eye(self.N).cuda()  # replace all the self.L with self.L_opt! s.t. weight is in [0,1], easy to optimize.
+        self.L_is_degenerate = False
         self.cal_L_opt()
         self.b = torch.mm(self.L_opt, self.verts)  # [Nv, 3]
 
@@ -66,25 +67,12 @@ class ARAPDeformer:
     def cal_L_opt(self):
         self.normalized_weight = self.weight
         self.L_opt[self.ii, self.jj] = - self.normalized_weight[self.ii, self.nn]  # [Nv, Nv]
+        self.L_is_degenerate = (torch.linalg.matrix_rank(self.L_opt) < self.L_opt.shape[0]) 
+        if self.L_is_degenerate:
+            print("L_opt is not invertible, use pseudo inverse instead")
 
     def reset(self):
         self.verts = self.verts_copy.clone()
-
-    def precompute_L(self, handle_idx):
-        # handle_idx: (M, ), torch.tensor
-
-        unknown_verts = [n for n in range(self.N) if n not in handle_idx.tolist()]  # all unknown verts
-        reduced_idx = [torch.from_numpy(x).long().to(self.device) for x in np.ix_(unknown_verts, unknown_verts)]  # sample sub laplacian matrix for unknowns only
-        # L_reduced = self.L[reduced_idx]
-        L_reduced = self.L_opt[reduced_idx]
-        # L_reduced_inv = cholesky_invert(L_reduced)
-        try:
-            self.L_reduced_inv = torch.inverse(L_reduced)
-        except:
-            print("L_reduced is not invertible, use pseudo inverse instead")
-            # self.L_reduced_inv = torch.mm(torch.inverse(torch.mm(L_reduced.T, L_reduced)), L_reduced.T)
-            self.L_reduced_inv = torch.linalg.pinv(L_reduced)
-
 
     def world_2_local_index(self, handle_idx):
         # handle_idx: [m,]
@@ -101,9 +89,6 @@ class ARAPDeformer:
         if self.point_mask is not None:
             handle_idx = self.world_2_local_index(handle_idx)
 
-        self.precompute_L(handle_idx)
-        # print(self.normalized_weight)
-
         ##### calculate b #####
         ### b_fixed
         unknown_verts = [n for n in range(self.N) if n not in handle_idx.tolist()]  # all unknown verts
@@ -115,7 +100,7 @@ class ARAPDeformer:
         ### prepare for b_all
         P = produce_edge_matrix_nfmt(self.verts, (self.N, self.K, 3), self.ii, self.jj, self.nn, device=self.device)  # [Nv, K, 3]
         if init_verts is None:
-            p_prime = lstsq_with_handles(self.L_opt, self.L_opt@self.verts, handle_idx, handle_pos) # [Nv, 3]  initial vertex positions
+            p_prime = lstsq_with_handles(self.L_opt, self.L_opt@self.verts, handle_idx, handle_pos, A_is_degenarate=self.L_is_degenerate)
         else:
             p_prime = init_verts
         
@@ -158,7 +143,7 @@ class ARAPDeformer:
             b = 0.5 * (torch.bmm(Rsum_batch, P_batch).squeeze(-1).reshape(self.N, self.K, 3) * self.normalized_weight[...,None]).sum(dim=1)
 
             ### calculate p_prime
-            p_prime = lstsq_with_handles(self.L_opt, b, handle_idx, handle_pos)  # [Nv, 3]
+            p_prime = lstsq_with_handles(self.L_opt, b, handle_idx, handle_pos, A_is_degenarate=self.L_is_degenerate)
 
             p_prime_seq.append(p_prime)
         d_scaling = None

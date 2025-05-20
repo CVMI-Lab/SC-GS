@@ -125,6 +125,7 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, msk_folder=
     cam_infos = []
     num_frames = len(cam_extrinsics)
     for idx, key in enumerate(cam_extrinsics):
+        potential_extensions = ['png', 'jpg', 'jpeg', 'PNG', 'JPG', 'JPEG']
         sys.stdout.write('\r')
         # the exact output you're looking for:
         sys.stdout.write(
@@ -154,6 +155,10 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, msk_folder=
 
         image_path = os.path.join(images_folder, os.path.basename(extr.name))
         image_name = os.path.basename(image_path).split(".")[0]
+        if not os.path.exists(image_path):
+            while not os.path.exists(image_path):
+                image_path = image_path.split(".")[0] + f'.{potential_extensions.pop(0)}'
+                print(f'Extension try: {image_path.split(".")[-1]}')
         image = Image.open(image_path)
 
         if msk_folder is not None and image.size[-1] == 3:

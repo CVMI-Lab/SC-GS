@@ -40,6 +40,49 @@ This is the code for SC-GS: Sparse-Controlled Gaussian Splatting for Editable Dy
 
 ## Updates
 
+### Special Attention
+The SIGGRAPH 2025 paper [Drag Your Gaussian](https://quyans.github.io/Drag-Your-Gaussian/) demonstrates bad deformation cases in its main paper, as it does not follow our editing guidance. We believe this is not a proper approach, as we have made a video guidance for editing and our [results](./assets/face.gif) below prove that SC-GS can achieve significantly larger-scale deformations than their results in their demo. Please refer to our results ([face](./assets/face.gif) & [person](./assets/person.gif)) and figures in their [paper](https://arxiv.org/pdf/2501.18672) for a clearer comparison.
+
+### 2025.05.21
+
+#### Editing Real-World Static Objects
+
+Solving a reported issues that invertable laplacian matrix causing slow editing. Editing real world static object is now flexible and show interesting results.
+
+#### 1. Masking the Object to Edit  
+When editing, remember to mask the object you want to modify. If you are using MiVOS and encounter an issue with non-digital image names (e.g., `frame_000.jpg` causing errors), you can resolve it by replacing the line in [this file](https://github.com/hkchengrex/MiVOS/blob/f2600a6eea8709c7b9f1a7575adc725def680b81/interact/interactive_utils.py#L26) with the following:  
+
+```python
+fnames = sorted(glob.glob(os.path.join(path, '*.jpg')), key=lambda x: int(''.join(char for char in os.path.basename(x).split('.')[0] if char.isdigit())))
+```
+
+#### 2. Training and Editing Static Scenes  
+
+Run the following command to train and edit a static scene:  
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python train_gui.py \
+    --source_path "XXX/person-small" \
+    --model_path "outputs/person/" \
+    --is_scene_static \
+    --gui \
+    --deform_type "node" \
+    --node_num "512" \
+    --gt_alpha_mask_as_dynamic_mask \
+    --gs_with_motion_mask \
+    --W "800" \
+    --H "800" \
+    --white_background
+```
+
+#### 3. Editing Guidance  
+By following the editing guidance, you can easily achieve satisfactory geometry editing results on static scenes, as demonstrated in [Instruct-NeRF2NeRF](https://instruct-nerf2nerf.github.io/):  
+
+<div align="center">
+  <img src="./assets/person.gif" width="24.5%">
+  <img src="./assets/face.gif" width="24.5%">
+</div>
+
 ### 2024-03-17: 
 
 1. Editing **static scenes** is now supported! Simply include the `--is_scene_static` argument and you are good to go!
