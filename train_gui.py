@@ -691,6 +691,27 @@ class GUI:
                     )
                     dpg.bind_item_theme("_button_save_kpt", theme_button)
 
+                    def callback_load_ckpt(sender, app_data):
+                        from utils.pickle_utils import load_obj
+                        if not hasattr(self, 'deform_kpt_files') or self.deform_kpt_files is None:
+                            self.deform_kpt_files = sorted([file for file in os.listdir(os.path.join(self.args.model_path)) if file.startswith('deform_keypoints') and file.endswith('.pickle')])
+                            self.deform_kpt_files_idx = 0
+                        else:
+                            self.deform_kpt_files_idx = (self.deform_kpt_files_idx + 1) % len(self.deform_kpt_files)
+                        print(f'Load {self.deform_kpt_files[self.deform_kpt_files_idx]}')
+                        deform_keypoints, self.animation_time = load_obj(os.path.join(self.args.model_path, self.deform_kpt_files[self.deform_kpt_files_idx]))
+                        self.is_animation = True
+                        self.animation_initialize()
+                        animated_pcl, quat, ani_d_scaling = self.animate_tool.deform_arap(handle_idx=deform_keypoints.get_kpt_idx(), handle_pos=deform_keypoints.get_deformed_kpt_np(), return_R=True)
+                        self.animation_trans_bias = animated_pcl - self.animate_tool.init_pcl
+                        self.animation_rot_bias = quat
+                        self.animation_scaling_bias = ani_d_scaling
+                        self.update_control_point_overlay()
+                    dpg.add_button(
+                        label="ld_kpt", tag="_button_load_kpt", callback=callback_load_ckpt
+                    )
+                    dpg.bind_item_theme("_button_load_kpt", theme_button)
+
                 with dpg.group(horizontal=True):
                     def callback_change_deform_mode(sender, app_data):
                         self.deform_mode = app_data
