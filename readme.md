@@ -40,9 +40,6 @@ This is the code for SC-GS: Sparse-Controlled Gaussian Splatting for Editable Dy
 
 ## Updates
 
-<!-- ### Special Attention
-The SIGGRAPH 2025 paper [Drag Your Gaussian](https://quyans.github.io/Drag-Your-Gaussian/) demonstrates bad deformation cases in its main paper, as it does not follow our editing guidance. We believe this is not a proper approach, as we have made a video guidance for editing and our [results](./assets/face.gif) below prove that SC-GS can achieve significantly larger-scale deformations than their results in their demo. Please refer to our results ([face](./assets/face.gif) & [person](./assets/person.gif)) and figures in their [paper](https://arxiv.org/pdf/2501.18672) for a clearer comparison.)-->
-
 ### 2025.05.21
 
 #### Editing Real-World Static Objects
