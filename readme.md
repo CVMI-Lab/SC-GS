@@ -81,6 +81,7 @@ By following the editing guidance, you can easily achieve satisfactory geometry 
 <div align="center">
   <img src="./assets/person.gif" width="24.5%">
   <img src="./assets/face.gif" width="24.5%">
+  <img src="./assets/face_editing.gif" width="43%">
 </div>
 
 ### 2024-03-17: 
