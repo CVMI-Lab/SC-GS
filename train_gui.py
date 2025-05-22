@@ -757,7 +757,8 @@ class GUI:
                 up = self.cam.rot.as_matrix()[:3, 1]
                 forward = self.cam.rot.as_matrix()[:3, 2]
                 rotvec_z = forward * np.radians(-0.05 * dx)
-                rot_mat = (R.from_rotvec(rotvec_z)).as_matrix()
+                rotvec_y = up * np.radians(-0.05 * dy)
+                rot_mat = (R.from_rotvec(rotvec_z)).as_matrix() @ (R.from_rotvec(rotvec_y)).as_matrix()
                 self.deform_keypoints.set_rotation_delta(rot_mat)
             else:
                 delta = 0.00010 * self.cam.rot.as_matrix()[:3, :3] @ np.array([dx, -dy, 0])
@@ -897,7 +898,7 @@ class GUI:
             dpg.add_mouse_click_handler(button=dpg.mvMouseButton_Left, callback=callback_keypoint_add)
 
         dpg.create_viewport(
-            title="Gaussian3D",
+            title="SC-GS",
             width=self.W + 600,
             height=self.H + (45 if os.name == "nt" else 0),
             resizable=False,

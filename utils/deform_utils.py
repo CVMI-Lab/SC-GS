@@ -166,21 +166,11 @@ def estimate_rotation(source, target, ii, jj, nn, K=10, weight=None, sample_idx=
     # print(f'0-1: {t1-t0}, 1-2: {t2-t1}, 2-3: {t3-t2}, 3-4: {t4-t3}')
     return R
 
-def invert_matrix(mat):
-    try:
-        mat_inv = torch.inverse(mat)
-    except:
-        print("L_reduced is not invertible, use pseudo inverse instead")
-        mat_inv = torch.linalg.pinv(mat)
-    return mat_inv
-
 import time
 def cal_arap_error(nodes_sequence, ii, jj, nn, K=10, weight=None, sample_num=512):
     # input: nodes_sequence: [Nt, Nv, 3]; ii, jj, nn: [Ne,], weight: [Nv, K]
     # output: arap error: float
     Nt, Nv, _ = nodes_sequence.shape
-    # laplacian_mat = cal_laplacian(Nv, ii, jj, nn)  # [Nv, Nv]
-    # laplacian_mat_inv = invert_matrix(laplacian_mat)
     arap_error = 0
     if weight is None:
         weight = torch.zeros(Nv, K).cuda()
