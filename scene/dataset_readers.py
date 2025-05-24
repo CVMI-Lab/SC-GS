@@ -180,9 +180,15 @@ def fetchPly(path):
     plydata = PlyData.read(path)
     vertices = plydata['vertex']
     positions = np.vstack([vertices['x'], vertices['y'], vertices['z']]).T
-    colors = np.vstack([vertices['red'], vertices['green'],
-                        vertices['blue']]).T / 255.0
-    normals = np.vstack([vertices['nx'], vertices['ny'], vertices['nz']]).T
+    if 'red' not in vertices:
+        colors = 0.5 * np.ones_like(positions)
+    else:
+        colors = np.vstack([vertices['red'], vertices['green'],
+                            vertices['blue']]).T / 255.0
+    if 'nx' not in vertices:
+        normals = np.zeros_like(positions)
+    else:
+        normals = np.vstack([vertices['nx'], vertices['ny'], vertices['nz']]).T
     return BasicPointCloud(points=positions, colors=colors, normals=normals)
 
 
@@ -329,16 +335,21 @@ def readCamerasFromTransforms(path, transformsfile, white_background, extension=
 
     return cam_infos
 
-
 def readNerfSyntheticInfo(path, white_background, eval, extension=".png", no_bg=True):
     print("Reading Training Transforms")
-    train_cam_infos = readCamerasFromTransforms(
-        path, "transforms_train.json", white_background, extension, no_bg=no_bg)
-    print(f"Read Train Transforms with {len(train_cam_infos)} cameras")
-    if os.path.exists(os.path.join(path, "transforms_test.json")):
-        test_cam_infos = readCamerasFromTransforms(
-        path, "transforms_test.json", white_background, extension, no_bg=no_bg)
+    if os.path.exists(os.path.join(path, "transforms_train.json")):
+        train_cam_infos = readCamerasFromTransforms(
+            path, "transforms_train.json", white_background, extension, no_bg=no_bg)
+        print(f"Read Train Transforms with {len(train_cam_infos)} cameras")
+        if os.path.exists(os.path.join(path, "transforms_test.json")):
+            test_cam_infos = readCamerasFromTransforms(
+            path, "transforms_test.json", white_background, extension, no_bg=no_bg)
+        else:
+            test_cam_infos = []
     else:
+        train_cam_infos = readCamerasFromTransforms(
+            path, "transforms.json", white_background, extension, no_bg=no_bg)
+        print(f"Read Train Transforms with {len(train_cam_infos)} cameras")
         test_cam_infos = []
 
     if not eval:

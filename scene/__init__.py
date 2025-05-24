@@ -57,7 +57,7 @@ class Scene:
             scene_info = sceneLoadTypeCallbacks["plenopticVideo"](args.source_path, args.eval, 24)
         elif os.path.exists(os.path.join(args.source_path, "transforms.json")):
             print("Found calibration_full.json, assuming Dynamic-360 data set!")
-            scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path)
+            scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path, args.images, args.eval)
         elif os.path.exists(os.path.join(args.source_path, "train_meta.json")):
             print("Found train_meta.json, assuming CMU data set!")
             scene_info = sceneLoadTypeCallbacks["CMU"](args.source_path)

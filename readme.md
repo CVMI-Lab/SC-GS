@@ -69,7 +69,8 @@ CUDA_VISIBLE_DEVICES=0 python train_gui.py \
     --gs_with_motion_mask \
     --W "800" \
     --H "800" \
-    --white_background
+    --white_background \
+    --init_isotropic_gs_with_all_colmap_pcl
 ```
 
 #### 3. Editing Results on I-N2N Scenes
@@ -78,7 +79,13 @@ By following the editing guidance, you can easily achieve satisfactory geometry 
 <div align="center">
   <img src="./assets/person.gif" width="24.5%">
   <img src="./assets/face.gif" width="24.5%">
-  <img src="./assets/face_editing.gif" width="43%">
+  <img src="./assets/kitchen.gif" width="24.5%">
+  <img src="./assets/bear.gif" width="24.5%">
+</div>
+
+<div align="center">
+  <img src="./assets/face_editing.gif" width="49.5%">
+  <img src="./assets/bear_editing.gif" width="49.5%">
 </div>
 
 ### 2024-03-17: 

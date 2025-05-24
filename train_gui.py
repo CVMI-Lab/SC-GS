@@ -1024,7 +1024,7 @@ class GUI:
     # no gui mode
     def train(self, iters=5000):
         if iters > 0:
-            for i in tqdm.trange(iters):
+            for i in tqdm.trange(iters+self.opt.iterations_node_rendering):
                 if self.deform.name == 'node' and self.iteration_node_rendering < self.opt.iterations_node_rendering:
                     self.train_node_rendering_step()
                 else:
@@ -1601,6 +1601,7 @@ class GUI:
             try:
                 buffer_overlay = np.zeros_like(self.buffer_image)
                 mv = self.cam.view # [4, 4]
+                mv[0, 3] *= -1
                 proj = self.cam.perspective # [4, 4]
                 mvp = proj @ mv
                 # do mvp transform for keypoints
