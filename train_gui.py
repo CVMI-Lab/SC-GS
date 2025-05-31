@@ -752,7 +752,7 @@ class GUI:
             # 2D to 3D delta
             dx = app_data[1]
             dy = app_data[2]
-            if dpg.is_key_down(dpg.mvKey_R):
+            if dpg.is_key_down(dpg.mvKey_R) or dpg.is_key_down(dpg.mvKey_Q):
                 side = self.cam.rot.as_matrix()[:3, 0]
                 up = self.cam.rot.as_matrix()[:3, 1]
                 forward = self.cam.rot.as_matrix()[:3, 2]
