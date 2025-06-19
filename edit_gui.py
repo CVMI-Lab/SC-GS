@@ -1003,7 +1003,7 @@ class GUI:
         d_rotation_bias = None
         d_xyz, d_rotation, d_scaling, d_opacity, d_color = 0.0, 0.0, 0.0, 0.0, 0.0
         if 'Node' in self.visualization_mode:
-            d_xyz = self.animation_trans_bias
+            d_xyz = self.animation_trans_bias if self.animation_trans_bias is not None else 0.
             gaussians = self.control_nodes_gaussians
         else:
             if hasattr(self, 'animator') and self.animation_trans_bias is not None:
