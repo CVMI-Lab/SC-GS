@@ -547,7 +547,7 @@ class GUI:
                         gaussian_new._rotation = gaussian_new.get_rotation * d_rotation
                         gaussian_new.save_ply('{}/edit_{}.ply'.format(self.args.model_path, new_id))
                     dpg.add_button(
-                        label="model",
+                        label="save",
                         tag="_button_save_model",
                         callback=callback_save,
                         user_data='model',
