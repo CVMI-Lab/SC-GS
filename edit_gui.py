@@ -191,7 +191,7 @@ class NodeDriver:
         if force or cache_target is None or not hasattr(self, f'cached_{cache_target}') or not getattr(self, f'cached_{cache_target}'):
             if method == 'floyd':
                 print(f'Use floyd distance, which is better for topological change!: {cache_target}')
-                node_dist_mat = self.geodesic_distance_floyd(cur_node=nodes, K=1)
+                node_dist_mat = self.geodesic_distance_floyd(cur_node=nodes, K=2)
                 floyd_nn_dist, floyd_nn_idx = node_dist_mat.sort(dim=1)
                 offset = 1 if XisNode else 0
                 node_nn_dist = floyd_nn_dist[:, offset:K+offset]
