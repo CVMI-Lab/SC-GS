@@ -158,16 +158,11 @@ def quaternion_to_matrix(quaternions: torch.Tensor) -> torch.Tensor:
 
 class NodeDriver:
     def __init__(self):
-        self.nn_weight = None
-        self.nn_dist = None
-        self.nn_idxs = None
-        self.cached_nn_weight = False
+        pass
     
     def p2dR(self, p, p0, K=8, as_quat=True):
         p = p.detach()
-        nn_dist, nn_idx, nn_nodes = pytorch3d.ops.knn_points(p0[None], p0[None], None, None, K=K+1, return_nn=True)
-        nn_dist, nn_idx, nn_nodes = nn_dist[0, :, 1:], nn_idx[0, :, 1:], nn_nodes[0, :, 1:]
-        nn_weight = torch.softmax(nn_dist/nn_dist.mean(), dim=-1)
+        nn_weight, nn_dist, nn_idx = self.cal_nn_weight(p0, p0, K=K, XisNode=True, cache_target='node')
         edges = torch.gather(p0[:, None].expand([p0.shape[0], K, p0.shape[-1]]), dim=0, index=nn_idx[..., None].expand([p0.shape[0], K, p0.shape[-1]])) - p0[:, None]
         t0_deform = None
         edges_t = torch.gather(p[:, None].expand([p.shape[0], K, p.shape[-1]]), dim=0, index=nn_idx[..., None].expand([p.shape[0], K, p.shape[-1]])) - p[:, None]
@@ -180,26 +175,52 @@ class NodeDriver:
         if as_quat:
             dR = matrix_to_quaternion(dR)
         return dR, t0_deform
+    
+    def geodesic_distance_floyd(self, cur_node, K=3):
+        node_num = cur_node.shape[0]
+        nn_dist, nn_idx, _ = pytorch3d.ops.knn_points(cur_node[None], cur_node[None], None, None, K=K+1)
+        nn_dist, nn_idx = nn_dist[0]**.5, nn_idx[0]
+        dist_mat = torch.inf * torch.ones([node_num, node_num], dtype=torch.float32, device=cur_node.device)
+        dist_mat.scatter_(dim=1, index=nn_idx, src=nn_dist)
+        dist_mat = torch.minimum(dist_mat, dist_mat.T)
+        for i in range(nn_dist.shape[0]):
+            dist_mat = torch.minimum((dist_mat[:, i, None] + dist_mat[None, i, :]), dist_mat)
+        return dist_mat
+        
+    def cal_nn_weight(self, x:torch.Tensor, nodes, K=None, method='floyd', XisNode=False, node_radius=1., cache_target=None, force=False):
+        if force or cache_target is None or not hasattr(self, f'cached_{cache_target}') or not getattr(self, f'cached_{cache_target}'):
+            if method == 'floyd':
+                print(f'Use floyd distance, which is better for topological change!: {cache_target}')
+                node_dist_mat = self.geodesic_distance_floyd(cur_node=nodes, K=1)
+                floyd_nn_dist, floyd_nn_idx = node_dist_mat.sort(dim=1)
+                offset = 1 if XisNode else 0
+                node_nn_dist = floyd_nn_dist[:, offset:K+offset]
+                node_nn_idxs = floyd_nn_idx[:, offset:K+offset]
+                nn1_dist, nn1_idxs, _ = pytorch3d.ops.knn_points(x[None], nodes[None], None, None, K=1)  # N, 1
+                nn1_dist, nn1_idxs = nn1_dist[0, :, 0], nn1_idxs[0, :, 0]  # N
+                nn_idxs = node_nn_idxs[nn1_idxs]  # N, K
+                nn_dist = node_nn_dist[nn1_idxs] + nn1_dist[:, None]  # N, K
+            else:
+                print(f'Use euclidean distance to calculate the nearest neighbor weight!')
+                K = self.K if K is None else K
+                K = K + 1 if XisNode else K  # +1 for the node itself
+                # Weights of control nodes
+                nn_dist, nn_idxs, _ = pytorch3d.ops.knn_points(x[None], nodes[None], None, None, K=K)  # N, K
+                nn_dist, nn_idxs = nn_dist[0], nn_idxs[0]  # N, K'
+                if XisNode:
+                    nn_dist, nn_idxs = nn_dist[:, 1:], nn_idxs[:, 1:]  # N, K
+            nn_weight = torch.exp(- nn_dist / (2 * node_radius ** 2))  # N, K
+            nn_weight = nn_weight + 1e-7
+            nn_weight = nn_weight / nn_weight.sum(dim=-1, keepdim=True)  # N, K
+            if cache_target is not None:
+                setattr(self, f'cached_{cache_target}', True)
+                setattr(self, f'{cache_target}_nn_weights_dist_idxs', [nn_weight, nn_dist, nn_idxs])
+        else:
+            nn_weight, nn_dist, nn_idxs = getattr(self, f'{cache_target}_nn_weights_dist_idxs')
+        return nn_weight, nn_dist, nn_idxs
 
     @torch.no_grad()
     def __call__(self, x, nodes, node_trans_bias, node_radius=1.):
-        
-        def cal_nn_weight(x:torch.Tensor, nodes, K=None):
-            if not self.cached_nn_weight:
-                K = self.K if K is None else K
-                # Weights of control nodes
-                nn_dist, nn_idxs, _ = pytorch3d.ops.knn_points(x[None], nodes[None], None, None, K=K)  # N, K
-                nn_dist, nn_idxs = nn_dist[0], nn_idxs[0]  # N, K
-                nn_weight = torch.exp(- nn_dist / (2 * node_radius ** 2))  # N, K
-                nn_weight = nn_weight + 1e-7
-                nn_weight = nn_weight / nn_weight.sum(dim=-1, keepdim=True)  # N, K
-                self.nn_weight = nn_weight
-                self.nn_dist = nn_dist
-                self.nn_idxs = nn_idxs
-                self.cached_nn_weight = True
-                return nn_weight, nn_dist, nn_idxs
-            else:
-                return self.nn_weight, self.nn_dist, self.nn_idxs
         
         x = x.detach()
         rot_bias = torch.tensor([1., 0, 0, 0]).float().to(x.device)
@@ -208,10 +229,10 @@ class NodeDriver:
         # Initial nodes and gs
         init_node = nodes
         init_gs = x
-        init_nn_weight, _, init_nn_idx = cal_nn_weight(x=init_gs, nodes=init_node, K=8)
+        init_nn_weight, _, init_nn_idx = self.cal_nn_weight(x=init_gs, nodes=init_node, K=4, node_radius=node_radius, XisNode=False, cache_target='gs')
         # New nodes and gs
         nodes_t = init_node + node_trans_bias
-        node_rot_bias, _ = self.p2dR(p=nodes_t, p0=init_node, K=8, as_quat=True)
+        node_rot_bias, _ = self.p2dR(p=nodes_t, p0=init_node, K=4, as_quat=True)
         d_nn_node_rot_R = quaternion_to_matrix(node_rot_bias)[init_nn_idx]
         # Aligh the relative distance considering the rotation
         gs_t = nodes_t[init_nn_idx] + torch.einsum('gkab,gkb->gka', d_nn_node_rot_R, (init_gs[:, None] - init_node[init_nn_idx]))
@@ -316,7 +337,8 @@ class GUI:
     @torch.no_grad()
     def animation_initialize(self):
         from lap_deform import LapDeform
-        pcl = self.gaussians.get_xyz
+        mask = (self.gaussians.get_opacity > 0.9)[:, 0]
+        pcl = self.gaussians.get_xyz[mask]
         from utils.time_utils import farthest_point_sample
         pts_idx = farthest_point_sample(pcl[None], 512)[0]
         pcl = pcl[pts_idx]
@@ -656,19 +678,22 @@ class GUI:
                     )
 
                 with dpg.group(horizontal=True):
-                    def callback_animation_mode(sender, app_data):
+                    def callback_recalnn(sender, app_data):
                         with torch.no_grad():
-                            self.is_animation = not self.is_animation
-                            if self.is_animation:
-                                if not hasattr(self, 'animate_tool') or self.animate_tool is None:
-                                    self.animation_initialize()
+                            print('Recalculate Nearest Neighbor based on existing deformation')
+                            cur_node = self.animation_trans_bias + self.animate_tool.init_pcl
+                            self.animator.cal_nn_weight(cur_node, cur_node, K=4, method='floyd', XisNode=True, cache_target='node', force=True)
+
+                            d_values = self.animator(self.gaussians.get_xyz, self.control_nodes, self.animation_trans_bias)
+                            gs = self.gaussians.get_xyz + d_values['d_xyz']
+                            self.animator.cal_nn_weight(gs, cur_node, K=4, method='floyd', XisNode=True, cache_target='gs', force=True)
+
                     dpg.add_button(
-                        label="Play",
-                        tag="_button_vis_animation",
-                        callback=callback_animation_mode,
-                        user_data='Animation',
+                        label="ReCalNN",
+                        tag="_button_recalnn",
+                        callback=callback_recalnn,
                     )
-                    dpg.bind_item_theme("_button_vis_animation", theme_button)
+                    dpg.bind_item_theme("_button_recalnn", theme_button)
 
                     def callback_animation_initialize(sender, app_data):
                         with torch.no_grad():
@@ -757,7 +782,7 @@ class GUI:
                     def callback_change_n_rings_N(sender, app_data):
                         self.n_rings_N = int(app_data)
                     dpg.add_combo(
-                        ("0", "1", "2", "3", "4"),
+                        ("0", "1", "2", "3", "4", "512"),
                         label="n_rings",
                         default_value="2",
                         callback=callback_change_n_rings_N,
@@ -1009,6 +1034,7 @@ class GUI:
             if hasattr(self, 'animator') and self.animation_trans_bias is not None:
                 d_values = self.animator(self.gaussians.get_xyz, self.control_nodes, self.animation_trans_bias)
                 d_xyz, d_rotation, d_scaling, d_opacity, d_color = d_values['d_xyz'], d_values['d_rotation'], d_values['d_scaling'], d_values['d_opacity'], d_values['d_color']
+                d_rotation_bias = d_values['d_rotation_bias']
             gaussians = self.gaussians
         
         out = render(viewpoint_camera=cur_cam, pc=gaussians, pipe=self.pipe, bg_color=self.background, d_xyz=d_xyz, d_rotation=d_rotation, d_scaling=d_scaling, d_opacity=d_opacity, d_color=d_color, scale_const=vis_scale_const, d_rotation_bias=d_rotation_bias)
